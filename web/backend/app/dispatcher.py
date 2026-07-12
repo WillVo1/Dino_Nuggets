@@ -141,6 +141,12 @@ class Dispatcher:
                         await db.update_task(task_id, steps=steps, cost_usd=cost)
                     if fe.kind == "answer":
                         await db.update_task(task_id, answer=fe.text)
+                    if fe.kind == "action" and fe.tool == "answer":
+                        # Some sessions settle without a redundant answer_event —
+                        # the answer tool's own result is the only copy we get.
+                        content = (fe.args or {}).get("content")
+                        if content:
+                            await db.update_task(task_id, answer=str(content))
                     await manager.broadcast("event", fe.model_dump())
                 await db.update_task(task_id, status=mapped_status)
                 await self._broadcast_task(task_id)
