@@ -14,11 +14,34 @@ interface Props {
 export function SessionView({ task, events }: Props) {
   const running = !TERMINAL.includes(task.status);
   const feedRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const userScrolledUp = useRef(false);
 
-  // auto-scroll the feed as events stream in
+  // detect if the user manually scrolled up so we don't fight them
   useEffect(() => {
-    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
-  }, [events.length]);
+    const el = feedRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+      userScrolledUp.current = !atBottom;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // scroll to bottom whenever the feed content grows in height
+  useEffect(() => {
+    const content = contentRef.current;
+    const scroller = feedRef.current;
+    if (!content || !scroller) return;
+    const ro = new ResizeObserver(() => {
+      if (!userScrolledUp.current) {
+        scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+      }
+    });
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
@@ -75,7 +98,9 @@ export function SessionView({ task, events }: Props) {
           ref={feedRef}
           className="min-h-0 w-[38%] overflow-y-auto border-l border-zinc-850 px-5 py-4"
         >
-          <Feed events={events} running={running && task.status === "running"} />
+          <div ref={contentRef}>
+            <Feed events={events} running={running && task.status === "running"} />
+          </div>
         </div>
       </div>
     </div>

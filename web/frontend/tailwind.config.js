@@ -14,6 +14,9 @@ export default {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
+      animation: {
+        shimmer: "shimmer 2s linear infinite",
+      },
     },
   },
   plugins: [],
