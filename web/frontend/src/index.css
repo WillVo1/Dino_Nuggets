@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Dark-mode vars for the vendored feed components (see DESIGN.md §6.1) */
+  --og2-shimmer-base: #52525b;
+  --og2-shimmer-highlight: #fafafa;
+  --og2-secondary-text: #a1a1aa;
+  --og2-primary-text: #e4e4e7;
+  --og2-border: #27272a;
+}
