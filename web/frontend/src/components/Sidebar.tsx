@@ -1,3 +1,4 @@
+import { api } from "../lib/api";
 import type { Task, Worker } from "../types";
 import { TERMINAL } from "../types";
 import { StatusPill } from "./StatusPill";
@@ -8,11 +9,19 @@ interface Props {
   selected: string | null;
   onSelect: (id: string | null) => void;
   onNewTask: () => void;
+  onClearCompleted: () => void;
 }
 
-export function Sidebar({ tasks, workers, selected, onSelect, onNewTask }: Props) {
+export function Sidebar({
+  tasks, workers, selected, onSelect, onNewTask, onClearCompleted,
+}: Props) {
   const active = tasks.filter((t) => !TERMINAL.includes(t.status));
   const completed = tasks.filter((t) => TERMINAL.includes(t.status));
+
+  async function clearCompleted() {
+    await api.clearCompleted();
+    onClearCompleted();
+  }
 
   const Item = ({ t }: { t: Task }) => (
     <button
@@ -30,7 +39,7 @@ export function Sidebar({ tasks, workers, selected, onSelect, onNewTask }: Props
   );
 
   return (
-    <aside className="flex h-screen w-72 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 p-3">
+    <aside className="flex h-screen w-72 shrink-0 flex-col border-r border-zinc-850 bg-zinc-950 p-3">
       <button
         onClick={() => onSelect(null)}
         className="mb-3 text-left text-lg font-semibold tracking-tight"
@@ -55,15 +64,23 @@ export function Sidebar({ tasks, workers, selected, onSelect, onNewTask }: Props
         )}
         {completed.length > 0 && (
           <section>
-            <h3 className="mb-1 px-1 text-[11px] font-semibold uppercase text-zinc-500">
-              Completed
-            </h3>
+            <div className="mb-1 flex items-center justify-between px-1">
+              <h3 className="text-[11px] font-semibold uppercase text-zinc-500">
+                Completed
+              </h3>
+              <button
+                onClick={clearCompleted}
+                className="text-[11px] text-zinc-600 hover:text-zinc-300"
+              >
+                Clear
+              </button>
+            </div>
             {completed.map((t) => <Item key={t.id} t={t} />)}
           </section>
         )}
       </div>
 
-      <footer className="mt-3 border-t border-zinc-800 pt-2">
+      <footer className="mt-3 shrink-0 border-t border-zinc-850 pt-2">
         <h3 className="mb-1 text-[11px] font-semibold uppercase text-zinc-500">Workers</h3>
         {workers.map((w) => (
           <div key={w.name} className="flex items-center gap-2 py-0.5 text-xs text-zinc-400">

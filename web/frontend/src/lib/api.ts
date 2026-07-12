@@ -20,4 +20,5 @@ export const api = {
       body: JSON.stringify({ text, preset }),
     }).then((r) => json<Task>(r)),
   stopTask: (id: string) => fetch(`/api/tasks/${id}/stop`, { method: "POST" }),
+  clearCompleted: () => fetch("/api/tasks/clear-completed", { method: "POST" }),
 };

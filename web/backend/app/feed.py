@@ -42,7 +42,8 @@ def to_feed_event(task_id: str, seq: int, raw: Any) -> Optional[FeedEvent]:
     z = getattr(raw, "event", raw)
     data = getattr(z, "data", None)
     kind = getattr(data, "kind", None)
-    ts = utcnow()
+    event_ts = getattr(z, "timestamp", None)
+    ts = event_ts.isoformat() if event_ts else utcnow()
 
     if kind == "policy_event":
         text = (getattr(data, "reasoning_content", None) or "").strip()

@@ -22,16 +22,18 @@ export function SessionView({ task, events }: Props) {
 
   return (
     <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
-      <header className="flex items-center gap-3 border-b border-zinc-800 px-6 py-3">
+      <header className="flex items-center gap-3 border-b border-zinc-850 px-6 py-3">
+        <h1 className="truncate text-[13.5px] font-medium text-zinc-100">{task.text}</h1>
         <StatusPill status={task.status} />
-        <h1 className="truncate text-sm font-medium">{task.text}</h1>
-        <span className="text-[11px] text-zinc-500">
-          {task.worker} {task.steps > 0 && `· step ${task.steps} · $${task.cost_usd.toFixed(3)}`}
+        <span className="ml-auto flex items-center gap-3 font-mono text-[11px] text-zinc-500">
+          {task.worker && <span>{task.worker}</span>}
+          {task.steps > 0 && <span>{task.steps} steps</span>}
+          {task.cost_usd > 0 && <span>${task.cost_usd.toFixed(3)}</span>}
         </span>
         {running && (
           <button
             onClick={() => api.stopTask(task.id)}
-            className="ml-auto rounded-lg border border-red-900 px-3 py-1 text-xs text-red-300 hover:bg-red-950"
+            className="rounded-md border border-zinc-700 px-3 py-1 text-[12px] text-zinc-300 transition-colors hover:border-red-800 hover:bg-red-950/40 hover:text-red-300"
           >
             Stop
           </button>
@@ -51,24 +53,28 @@ export function SessionView({ task, events }: Props) {
 
       <div className="flex min-h-0 flex-1">
         {/* live view: newest frame */}
-        <div className="flex w-3/5 items-start justify-center bg-black p-4">
+        <div className="flex w-[62%] items-center justify-center bg-black p-5">
           {task.last_screenshot_url ? (
             <img
               src={screenshotSrc(task.last_screenshot_url)}
               alt="live desktop"
-              className="max-h-full rounded-lg border border-zinc-800"
+              className="max-h-full max-w-full rounded-lg border border-zinc-850 shadow-2xl"
             />
           ) : (
-            <div className="mt-24 text-sm text-zinc-600">
+            <div className="flex flex-col items-center gap-2 text-[13px] text-zinc-600">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-zinc-600" />
               {task.status === "queued_remote"
                 ? "waiting for a free session slot…"
-                : "waiting for first frame…"}
+                : "connecting to the agent…"}
             </div>
           )}
         </div>
 
         {/* streaming agent feed */}
-        <div ref={feedRef} className="min-h-0 w-2/5 overflow-y-auto border-l border-zinc-800 p-4">
+        <div
+          ref={feedRef}
+          className="min-h-0 w-[38%] overflow-y-auto border-l border-zinc-850 px-5 py-4"
+        >
           <Feed events={events} running={running && task.status === "running"} />
         </div>
       </div>

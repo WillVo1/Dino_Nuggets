@@ -7,7 +7,7 @@ import { Sidebar } from "./components/Sidebar";
 import { useFleet } from "./hooks/useFleet";
 
 export default function App() {
-  const { tasks, events, workers, loadTaskDetail } = useFleet();
+  const { tasks, events, workers, loadTaskDetail, resync } = useFleet();
   const [selected, setSelected] = useState<string | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
 
@@ -29,12 +29,16 @@ export default function App() {
         selected={selected}
         onSelect={setSelected}
         onNewTask={() => setNewTaskOpen(true)}
+        onClearCompleted={() => {
+          setSelected(null);
+          resync();
+        }}
       />
       {selectedTask ? (
         <SessionView task={selectedTask} events={events[selectedTask.id] ?? []} />
       ) : (
         <main className="min-w-0 flex-1 overflow-y-auto">
-          <HomeGrid tasks={taskList} onSelect={setSelected} />
+          <HomeGrid tasks={taskList} workers={workers} onSelect={setSelected} />
         </main>
       )}
       <NewTask

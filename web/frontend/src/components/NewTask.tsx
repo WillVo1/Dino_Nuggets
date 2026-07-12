@@ -24,7 +24,9 @@ export function NewTask({ open, onClose, onCreated }: Props) {
     if (busy || (!preset && !body.trim())) return;
     setBusy(true);
     try {
-      const task = await api.createTask(body || preset || "", preset);
+      // display text: user's words, else the preset's friendly label (never the raw key)
+      const label = preset ? presets.find((p) => p.key === preset)?.label : "";
+      const task = await api.createTask(body.trim() || label || preset || "", preset);
       setText("");
       onCreated(task.id);
       onClose();

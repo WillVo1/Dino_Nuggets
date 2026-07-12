@@ -16,21 +16,27 @@ export function useFleet() {
     setEvents((e) => ({ ...e, [id]: evs }));
   }, []);
 
-  useEffect(() => {
-    api.tasks().then((list) =>
-      setTasks(Object.fromEntries(list.map((t) => [t.id, t])))
-    );
+  const resync = useCallback(() => {
+    // authoritative refresh — clears tasks orphaned by a backend restart
+    api.tasks().then((list) => setTasks(Object.fromEntries(list.map((t) => [t.id, t]))));
     api.workers().then(setWorkers);
+  }, []);
+
+  useEffect(() => {
+    resync();
 
     let closed = false;
     function connect() {
       const proto = location.protocol === "https:" ? "wss" : "ws";
       const ws = new WebSocket(`${proto}://${location.host}/ws`);
       wsRef.current = ws;
+      ws.onopen = () => resync(); // reconnect after a backend restart -> resync truth
       ws.onmessage = (msg) => {
         const { type, payload } = JSON.parse(msg.data);
         if (type === "task") {
           setTasks((t) => ({ ...t, [payload.id]: payload }));
+        } else if (type === "workers") {
+          setWorkers(payload);
         } else if (type === "event") {
           setEvents((e) => {
             const list = e[payload.task_id] ?? [];
@@ -50,5 +56,5 @@ export function useFleet() {
     };
   }, []);
 
-  return { tasks, events, workers, setWorkers, loadTaskDetail };
+  return { tasks, events, workers, setWorkers, loadTaskDetail, resync };
 }

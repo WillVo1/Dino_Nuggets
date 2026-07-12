@@ -29,8 +29,9 @@ _CHECKS = {
         "quotation for Pam Beesly",
     ),
     "create_customer": (
-        "SELECT name FROM party_party WHERE name='Stamford Paper Co' LIMIT 1",
-        "party 'Stamford Paper Co'",
+        "SELECT cm.value FROM party_contact_mechanism cm JOIN party_party p ON cm.party=p.id "
+        "WHERE p.name='Stamford Paper Co' AND cm.value='orders@stamfordpaper.com' LIMIT 1",
+        "party 'Stamford Paper Co' with intact email",
     ),
     "create_product": (
         "SELECT t.name FROM product_template t WHERE t.name='Desk Lamp' AND t.salable LIMIT 1",

@@ -24,6 +24,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.connect()
+    orphaned = await db.reconcile_orphans()
+    if orphaned:
+        logging.getLogger(__name__).info("reconciled %d orphaned task(s)", orphaned)
     pool.load()
     await pool.refresh()
     dispatcher.start()
@@ -61,6 +64,11 @@ async def create_task(body: TaskCreate):
 @app.get("/api/tasks")
 async def list_tasks():
     return [t.model_dump() for t in await db.list_tasks()]
+
+
+@app.post("/api/tasks/clear-completed")
+async def clear_completed():
+    return {"cleared": await db.clear_completed()}
 
 
 @app.get("/api/tasks/{task_id}")

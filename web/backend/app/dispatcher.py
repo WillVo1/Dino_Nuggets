@@ -133,12 +133,22 @@ class Dispatcher:
             await self._finish(task_id, status, worker=worker_name,
                                verification=summary, outcome=outcome)
         else:
-            await self._finish(task_id, TaskStatus.FAILED, worker=worker_name,
+            status = (
+                TaskStatus.CANCELLED if final_status == "cancelled" else TaskStatus.FAILED
+            )
+            await self._finish(task_id, status, worker=worker_name,
                                outcome=outcome or final_status)
 
     async def _finish(self, task_id: str, status: TaskStatus, worker: str | None = None,
                       verification: str | None = None, outcome: str | None = None,
                       error: str | None = None) -> None:
+        current = await db.get_task(task_id)
+        if current and current.status.is_terminal:
+            # stop() already finished this task; don't overwrite CANCELLED with
+            # FAILED when the watcher sees the session settle afterwards
+            if worker:
+                await pool.release(worker)
+            return
         fields = {"status": status, "finished_at": utcnow()}
         if verification:
             fields["verification"] = verification
@@ -155,6 +165,8 @@ class Dispatcher:
         task = await db.get_task(task_id)
         if task:
             await manager.broadcast("task", task.model_dump())
+        # worker busy/idle flips with the task lifecycle — keep the dots honest
+        await manager.broadcast("workers", [w.model_dump() for w in pool.workers])
 
 
 dispatcher = Dispatcher()

@@ -99,6 +99,38 @@ class Database:
         cur = await self.conn.execute("SELECT * FROM tasks ORDER BY created_at DESC")
         return [_row_to_task(r) for r in await cur.fetchall()]
 
+    async def reconcile_orphans(self) -> int:
+        """On startup, fail any task left non-terminal by a previous process —
+        its watcher died with that process, so it would otherwise show 'running'
+        forever."""
+        live = (
+            TaskStatus.QUEUED_LOCAL.value, TaskStatus.QUEUED_REMOTE.value,
+            TaskStatus.RUNNING.value, TaskStatus.VERIFYING.value,
+        )
+        placeholders = ",".join("?" for _ in live)
+        cur = await self.conn.execute(
+            f"UPDATE tasks SET status = ?, verification = ?, finished_at = ? "
+            f"WHERE status IN ({placeholders})",
+            (TaskStatus.FAILED.value, "interrupted by server restart", utcnow(), *live),
+        )
+        await self.conn.commit()
+        return cur.rowcount
+
+    async def clear_completed(self) -> int:
+        terminal = (
+            TaskStatus.SUCCEEDED.value, TaskStatus.DONE_UNVERIFIED.value,
+            TaskStatus.FAILED.value, TaskStatus.CANCELLED.value,
+        )
+        placeholders = ",".join("?" for _ in terminal)
+        cur = await self.conn.execute(
+            f"DELETE FROM tasks WHERE status IN ({placeholders})", terminal
+        )
+        await self.conn.execute(
+            "DELETE FROM events WHERE task_id NOT IN (SELECT id FROM tasks)"
+        )
+        await self.conn.commit()
+        return cur.rowcount
+
     # -- events --------------------------------------------------------------
 
     async def append_event(self, ev: FeedEvent) -> None:
