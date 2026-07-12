@@ -1,0 +1,10 @@
+# Secrets — never commit
+.env
+**/.env
+
+# Nested third-party repo (H Company's own clone); referenced, not vendored
+holo-desktop-cli/
+
+# Python / Docker scratch
+__pycache__/
+*.pyc
