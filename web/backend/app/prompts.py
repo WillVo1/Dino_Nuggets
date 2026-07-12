@@ -1,29 +1,57 @@
-"""Prompt enrichment: fixed preamble + battle-tested task presets.
+"""Prompt enrichment: a neutral desktop preamble + optional per-app context +
+battle-tested task presets.
 
-The UI hints here were validated in M0-M2 runs (see DESIGN.md "M1 findings"):
-the Attachments-dialog anatomy and the two-"+"-buttons distinction are the
-difference between a clean pass and a mis-named attachment.
+Every task the fleet runs is app-agnostic — the same worker desktop can host
+Tryton, Thunderbird, LibreOffice, a browser, etc. So the base preamble stays
+app-neutral, and any app-specific guidance (like the Tryton UI hints validated
+in M0-M2 runs — the Attachments-dialog anatomy and the two-"+"-buttons
+distinction) lives in a per-app CONTEXT block attached only to that app's tasks.
 """
 
 from __future__ import annotations
 
-PREAMBLE = (
-    "You are controlling the Tryton ERP desktop client (GTK, on Linux), logged in as "
-    "admin, company Dunder Mifflin. The main menu tree is on the left (Parties, "
-    "Companies, Products, Sales, ...). UI hints: a group header only expands/collapses; "
-    "the item with the list icon below it opens the data view (double-click it). There "
-    'are TWO different "+" buttons: the top-toolbar "+" creates a new top-level record; '
-    'the small "+" at the right end of a sub-list bar (like "Lines") adds a child row. '
-    "Save = the disk icon or Ctrl+S; records get their Number only after saving. To "
-    "identify a record in a list, use the State column (drafts show an empty Number "
-    "cell). If a save fails, a dialog names the missing required field.\n\n"
-    "Task: "
+# App-neutral: how to operate ANY desktop app by looking + clicking + typing.
+BASE_PREAMBLE = (
+    "You are controlling a Linux desktop (X11) by looking at the screen and using the "
+    "mouse and keyboard, exactly like a human would. Applications open in windows on the "
+    "desktop. Work step by step: take a screenshot to see the current state, then act, "
+    "then look again. General tips: application menus are along the top of each window; a "
+    "file-open/save dialog accepts a typed path via Ctrl+L; save with Ctrl+S. If a dialog "
+    "blocks you, read it and respond before continuing.\n\n"
 )
 
-# Preset tasks (the four demo trajectories). Keys are stable API identifiers.
+# How to finish — this is what lets retrieval/summarization tasks surface their
+# result. The agent's final answer is shown to the user in the UI (the green
+# "Answer" box), so a report-style task must put the requested info THERE.
+ANSWER_GUIDANCE = (
+    "Finishing the task: if it asks you to FIND, READ, LOOK UP, RETRIEVE, SUMMARIZE, "
+    "COUNT, or otherwise REPORT information (e.g. \"summarize my unread emails\", \"what's "
+    "the total in column B\", \"how many messages are from Pam\"), your final answer MUST "
+    "BE that information itself, written out clearly for the user — that answer is what "
+    "they see. If the task is purely an ACTION with nothing to report back (e.g. \"create "
+    "a sale\", \"attach a file\", \"save the document\"), reply with the single word: done.\n\n"
+)
+
+# App-specific context. Attached to a task only when it targets that app, so a
+# Thunderbird or free-text task never gets Tryton's ERP hints stapled on.
+TRYTON_CONTEXT = (
+    "App context — you are in the Tryton ERP desktop client (GTK), logged in as admin, "
+    "company Dunder Mifflin. The main menu tree is on the left (Parties, Companies, "
+    "Products, Sales, ...). A group header only expands/collapses; the item with the list "
+    "icon below it opens the data view (double-click it). There are TWO different \"+\" "
+    "buttons: the top-toolbar \"+\" creates a new top-level record; the small \"+\" at the "
+    "right end of a sub-list bar (like \"Lines\") adds a child row. Records get their "
+    "Number only after saving. To identify a record in a list, use the State column "
+    "(drafts show an empty Number cell). If a save fails, a dialog names the missing "
+    "required field.\n\n"
+)
+
+# Preset tasks. Keys are stable API identifiers. A preset may carry an optional
+# "context" (app-specific block prepended for that task); the Tryton ones do.
 PRESETS: dict[str, dict[str, str]] = {
     "create_sale": {
         "label": "Create & quote a sale (Office Chair x4)",
+        "context": TRYTON_CONTEXT,
         "task": (
             "Create and confirm a sales order.\n"
             '1. Expand "Sales" in the left menu and double-click the "Sales" list item.\n'
@@ -41,6 +69,7 @@ PRESETS: dict[str, dict[str, str]] = {
     },
     "create_customer": {
         "label": "Create a customer with contact",
+        "context": TRYTON_CONTEXT,
         "task": (
             "Create a new customer.\n"
             '1. Expand "Parties" in the left menu and double-click the "Parties" list item.\n'
@@ -57,6 +86,7 @@ PRESETS: dict[str, dict[str, str]] = {
     },
     "create_product": {
         "label": "Create salable product (Desk Lamp)",
+        "context": TRYTON_CONTEXT,
         "task": (
             "Create a new salable product.\n"
             '1. Expand "Products" in the left menu and double-click the "Products" list item.\n'
@@ -71,6 +101,7 @@ PRESETS: dict[str, dict[str, str]] = {
     },
     "attach_document": {
         "label": "Attach contract to Acme sale",
+        "context": TRYTON_CONTEXT,
         "task": (
             "Attach the file /mnt/docs/acme_contract.txt to the Acme Corp sale whose State "
             "column reads Processing.\n"
@@ -92,6 +123,20 @@ PRESETS: dict[str, dict[str, str]] = {
 
 
 def build_prompt(text: str, preset: str | None) -> str:
-    """Wrap user text (or a preset body) in the fixed preamble."""
-    body = PRESETS[preset]["task"] if preset and preset in PRESETS else text
-    return PREAMBLE + body
+    """Assemble the full message sent to the agent:
+
+        BASE_PREAMBLE  (app-neutral desktop operation)
+      + <app context>  (only if the preset declares one)
+      + ANSWER_GUIDANCE (report info vs. reply "done")
+      + Task: <preset body or the user's free text>
+
+    Free-text tasks get no app context (we don't know which app they target),
+    so they're never mis-primed with, say, Tryton's ERP hints.
+    """
+    if preset and preset in PRESETS:
+        context = PRESETS[preset].get("context", "")
+        body = PRESETS[preset]["task"]
+    else:
+        context = ""
+        body = text
+    return f"{BASE_PREAMBLE}{context}{ANSWER_GUIDANCE}Task: {body}"
