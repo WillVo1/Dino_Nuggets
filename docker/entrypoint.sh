@@ -69,6 +69,11 @@ case "$APP" in
   none)
     echo "[entrypoint] no app to start (APP=none)"
     ;;
+  demo)
+    echo "[entrypoint] starting DEMO mode (all apps)"
+    /opt/agent/demo-entrypoint.sh
+    exit 0
+    ;;
   *)
     echo "[entrypoint] unknown APP=$APP, starting xterm"
     xterm &

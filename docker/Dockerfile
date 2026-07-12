@@ -23,7 +23,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         # LibreOffice (word processor, spreadsheet, presentation — no login)
         libreoffice libreoffice-gtk3 \
-        # Slack (messaging — needs login)
+        # Thunderbird (email client)
+        thunderbird \
+        # Chromium (for Slack web app)
+        chromium \
+        # Slack (messaging — desktop app, needs login)
         && wget -q -O /tmp/slack.deb "https://downloads.slack-edge.com/desktop-releases/linux/x64/4.41.105/slack-desktop-4.41.105-amd64.deb" \
         && apt-get install -y /tmp/slack.deb || true \
         && rm -f /tmp/slack.deb \
@@ -52,15 +56,24 @@ RUN DRV=/opt/agent/venv/lib/python3.12/site-packages/hai_drivers/desktop/local/d
     sed -i 's/self\._keyboard\.release(key_parsed)/pyautogui.keyUp(str(key_parsed))/' "$DRV" && \
     echo "[build] driver.py patched: pynput -> pyautogui for keyboard"
 
+# ── LibreOffice: disable Tip of the Day popup ───────────────────────
+RUN mkdir -p /home/agent/.config/libreoffice/4/user && \
+    printf '<?xml version="1.0" encoding="UTF-8"?>\n<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n <item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowTipOfTheDay" oor:op="fuse"><value>false</value></prop></item>\n</oor:items>\n' \
+    > /home/agent/.config/libreoffice/4/user/registrymodifications.xcu
+
 # ── Copy helper scripts ──────────────────────────────────────────────
 COPY entrypoint.sh /opt/agent/entrypoint.sh
 COPY setup_pitivi.py /opt/agent/setup_pitivi.py
 COPY tryton.conf /opt/agent/tryton-profile.conf
-RUN chmod +x /opt/agent/entrypoint.sh
+COPY demo-entrypoint.sh /opt/agent/demo-entrypoint.sh
+COPY slack_auth.py /opt/agent/slack_auth.py
+COPY tryton_login.py /opt/agent/tryton_login.py
+COPY demo_email.eml /opt/agent/demo_email.eml
+RUN chmod +x /opt/agent/entrypoint.sh /opt/agent/demo-entrypoint.sh
 
 # Create a non-root user for Electron apps (Slack) that refuse to run as root
 RUN useradd -m -s /bin/bash agent
-RUN mkdir -p /opt/agent && chown agent:agent /opt/agent
+RUN mkdir -p /opt/agent && chown -R agent:agent /opt/agent /home/agent
 USER agent
 ENV HOME=/home/agent
 

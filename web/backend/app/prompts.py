@@ -119,6 +119,42 @@ PRESETS: dict[str, dict[str, str]] = {
             "8. Click Close. Answer with the word: done."
         ),
     },
+    "demo_invoice_flow": {
+        "label": "Demo: Process invoice email end-to-end",
+        "context": (
+            "You are on a Linux desktop with FOUR apps already open:\n"
+            "1. Thunderbird (email client) — has an invoice email\n"
+            "2. Tryton ERP (already logged in as admin, company Dunder Mifflin)\n"
+            "3. LibreOffice Writer (blank document open)\n"
+            "4. Slack in Chromium (already logged in)\n\n"
+            "Switch between apps by clicking their window in the taskbar or using Alt+Tab.\n"
+            "The desktop resolution is 1920x1080.\n\n"
+        ),
+        "task": (
+            "Process the customer invoice email end-to-end:\n\n"
+            "STEP 1 — READ THE EMAIL:\n"
+            "Switch to Thunderbird. Find the email with subject containing 'Invoice'. "
+            "Read it and note: the customer name (Acme Corp), the line items, and the total amount ($1,460).\n\n"
+            "STEP 2 — CREATE THE SALE IN TRYTON:\n"
+            "Switch to Tryton. In the left menu, expand 'Sales' and double-click the 'Sales' list item. "
+            "Click the '+' (New) button in the top toolbar. "
+            "In the Party field, type 'Acme Corp' and select it from the dropdown. "
+            "Set the Sale Date to today. "
+            "Click the '+' at the right end of the Lines bar to add a line. "
+            "In the Lines dialog, type 'Office Chair' in the Product field and select it. "
+            "Set Quantity to 4. Click Add. "
+            "Save with Ctrl+S. "
+            "Click the 'Quote' button to advance to Quotation state.\n\n"
+            "STEP 3 — LOG IN LIBREOFFICE:\n"
+            "Switch to LibreOffice Writer. Type: 'Invoice processed: Acme Corp - Office Chair x4 @ $120 = $480. Sale created in Tryton, advanced to Quotation.'\n\n"
+            "STEP 4 — NOTIFY MANAGER ON SLACK:\n"
+            "Switch to Slack in Chromium. Go to the direct messages section. "
+            "Find 'Jeff' in the DM list and click it. "
+            "Type: 'Hey Jeff, just processed the invoice from Acme Corp. Created the sales order in Tryton and it is now in Quotation state. Total: $480 for 4 Office Chairs.'\n"
+            "Press Enter to send the message.\n\n"
+            "After completing all steps, answer with: done."
+        ),
+    },
 }
 
 
