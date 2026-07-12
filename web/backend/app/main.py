@@ -13,7 +13,7 @@ from fastapi.responses import Response
 from .config import settings
 from .db import db
 from .dispatcher import dispatcher
-from .models import TaskCreate
+from .models import TaskCreate, Worker, WorkerStatus
 from .pool import pool
 from .prompts import PRESETS
 from .reset import capture_baseline, reset_worker
@@ -68,16 +68,23 @@ def _require_demo() -> None:
         raise HTTPException(403, "demo mode is off (set DEMO_MODE=1)")
 
 
-def _require_known_worker(name: str) -> None:
-    if name not in {w.name for w in pool.workers}:
-        raise HTTPException(404, f"unknown worker '{name}'")
+def _get_worker(name: str) -> Worker:
+    for w in pool.workers:
+        if w.name == name:
+            return w
+    raise HTTPException(404, f"unknown worker '{name}'")
 
 
 @app.post("/api/workers/{name}/reset")
 async def worker_reset(name: str):
     """Manually rewind a worker's desktop to the pristine baseline (demo only)."""
     _require_demo()
-    _require_known_worker(name)
+    worker = _get_worker(name)
+    # Reset wipes $HOME and kills GUI apps — doing that mid-task would yank the
+    # desktop out from under a live agent. The UI disables the button when busy,
+    # but enforce it here too (direct-call / race).
+    if worker.status == WorkerStatus.BUSY:
+        raise HTTPException(409, f"worker '{name}' is busy running a task")
     ok, summary = await reset_worker(name)
     if not ok:
         raise HTTPException(502, summary)
@@ -88,7 +95,10 @@ async def worker_reset(name: str):
 async def worker_baseline(name: str):
     """Capture a worker's current $HOME as the demo baseline (demo only)."""
     _require_demo()
-    _require_known_worker(name)
+    worker = _get_worker(name)
+    # Capturing mid-task would snapshot the task's leftover state as the baseline.
+    if worker.status == WorkerStatus.BUSY:
+        raise HTTPException(409, f"worker '{name}' is busy running a task")
     ok, summary = await capture_baseline(name)
     if not ok:
         raise HTTPException(502, summary)

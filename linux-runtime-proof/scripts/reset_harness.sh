@@ -71,6 +71,22 @@ check "task_output.txt removed"         '[ ! -f "$HOME_DIR/task_output.txt" ]'
 check "baseline dotfile restored"       '[ -f "$HOME_DIR/.config_marker" ]'
 check "restored dotfile content intact" '[ "$(cat "$HOME_DIR/.config_marker")" = "pristine" ]'
 
+# --- negative path: a CORRUPT baseline must fail loudly and NOT wipe $HOME ----
+# (this is the review's #1 finding — the old script wiped $HOME then printed
+#  RESET_OK regardless of whether the restore actually succeeded)
+echo "=== RESET with a corrupt baseline ==="
+echo "user data that must survive a failed reset" > "$HOME_DIR/precious.txt"
+GOOD_BAK=/opt/agent/home-baseline.good.tgz
+cp "$BASELINE" "$GOOD_BAK"
+head -c 32 /dev/urandom > "$BASELINE"            # truncate/garble the tarball
+bash -c "$RESET_SCRIPT" >/tmp/reset_bad.out 2>&1; BAD_RC=$?
+note "corrupt-reset rc=$BAD_RC"
+check "corrupt reset exits nonzero"      "[ $BAD_RC -ne 0 ]"
+check "corrupt reset did NOT print RESET_OK" '! grep -q RESET_OK /tmp/reset_bad.out'
+check "user data preserved on failed reset"  '[ -f "$HOME_DIR/precious.txt" ]'
+check "no leftover staging dir"          '[ -z "$(find "$HOME_DIR" -maxdepth 1 -name ".reset-stage.*" 2>/dev/null)" ]'
+cp "$GOOD_BAK" "$BASELINE"                        # restore good baseline
+
 echo
 if [ $FAIL -eq 0 ]; then echo "ALL RESET CHECKS PASSED"; else echo "SOME CHECKS FAILED"; fi
 kill $XVFB_PID $WM_PID $BRIDGE_PID 2>/dev/null
