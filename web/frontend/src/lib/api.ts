@@ -21,4 +21,10 @@ export const api = {
     }).then((r) => json<Task>(r)),
   stopTask: (id: string) => fetch(`/api/tasks/${id}/stop`, { method: "POST" }),
   clearCompleted: () => fetch("/api/tasks/clear-completed", { method: "POST" }),
+  transcribe: (audio: Blob) =>
+    fetch("/api/transcribe", {
+      method: "POST",
+      headers: { "Content-Type": audio.type || "audio/wav" },
+      body: audio,
+    }).then((r) => json<{ text: string }>(r)),
 };

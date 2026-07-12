@@ -6,7 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
@@ -16,6 +16,7 @@ from .dispatcher import dispatcher
 from .models import TaskCreate
 from .pool import pool
 from .prompts import PRESETS
+from .stt import TranscriptionError, transcribe
 from .ws import manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -104,6 +105,24 @@ async def screenshot(url: str):
         media_type=r.headers.get("content-type", "image/png"),
         headers={"Cache-Control": "public, max-age=3600"},
     )
+
+
+@app.post("/api/transcribe")
+async def transcribe_audio(request: Request):
+    """Transcribe mic audio: browser POSTs raw audio bytes, we proxy to Gradium.
+
+    Body is the recorded audio; Content-Type tells Gradium the codec
+    (audio/wav, audio/ogg, ...). Returns {"text": "<transcript>"}.
+    """
+    audio = await request.body()
+    if not audio:
+        raise HTTPException(400, "empty audio body")
+    content_type = request.headers.get("content-type", "audio/wav")
+    try:
+        text = await transcribe(audio, content_type)
+    except TranscriptionError as exc:
+        raise HTTPException(502, str(exc))
+    return {"text": text}
 
 
 @app.websocket("/ws")
