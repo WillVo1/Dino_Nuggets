@@ -11,21 +11,35 @@ A parallel computer-use agent fleet control plane. Submit plain-language tasks t
 
 ## Architecture
 
-```
-Your Mac (browser)              GCP VMs                     H Company Cloud
-┌──────────────┐      ┌─────────────────────┐      ┌──────────────────────┐
-│  React/Vite  │      │  Worker VM 1         │      │  Holo3 Agent (cloud) │
-│  frontend    │◄────►│  Xvfb + openbox +   │◄────►│  agp.hcompany.ai     │
-│  :5173       │ WS   │  apps (Tryton, etc) │      │                      │
-│              │      │  hai bridge         │      │  Session runs here   │
-│  FastAPI     │      └─────────────────────┘      │  Commands → VM       │
-│  backend     │      ┌─────────────────────┐      │  Screenshots ← VM    │
-│  :8787       │      │  Worker VM 2         │      │                      │
-│  SQLite DB   │      │  Xvfb + Pitivi       │◄────►│                      │
-│  dispatcher  │      │  hai bridge         │      └──────────────────────┘
-│  pool        │      └─────────────────────┘
-│  watcher     │
-└──────────────┘
+```mermaid
+graph TB
+    subgraph Mac["Your Mac (browser)"]
+        FE["React/Vite Frontend<br/>:5173<br/>task submission + live feed"]
+        BE["FastAPI Backend<br/>:8787<br/>dispatcher + pool + watcher<br/>SQLite DB"]
+        FE <-. WebSocket /api .-> BE
+    end
+
+    subgraph GCP["GCP VMs"]
+        VM1["Worker VM 1<br/>Xvfb + openbox<br/>Tryton, LibreOffice, Thunderbird<br/>hai bridge"]
+        VM2["Worker VM 2<br/>Xvfb + openbox<br/>Pitivi, Slack<br/>hai bridge"]
+    end
+
+    subgraph Cloud["H Company Cloud"]
+        AGP["agp.hcompany.ai<br/>Holo3 Agent<br/>session runs here"]
+    end
+
+    BE -- "gcloud ssh<br/>read session_id" --> VM1
+    BE -- "gcloud ssh<br/>read session_id" --> VM2
+
+    BE -- "create_session<br/>(inline agent + session_id)" --> AGP
+    BE -- "get_session_changes<br/>(long-poll events)" --> AGP
+
+    AGP -- "commands<br/>(click, type, screenshot)" --> VM1
+    AGP -- "commands<br/>(click, type, screenshot)" --> VM2
+    VM1 -- "screenshots + results" --> AGP
+    VM2 -- "screenshots + results" --> AGP
+
+    BE -- "screenshot proxy<br/>(adds bearer token)" --> AGP
 ```
 
 - **Frontend** (React + Vite + Tailwind): task submission, live feed with screenshots, worker status, voice-to-text via Gradium
