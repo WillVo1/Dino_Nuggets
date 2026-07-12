@@ -252,11 +252,17 @@ export function FleetTree({ tasks, workers, onSelect, onNewTask }: Props) {
                 title={mic === "recording" ? "Stop dictation" : "Dictate"}
                 className={`flex h-9 w-9 items-center justify-center rounded-full border transition-colors disabled:opacity-60 ${
                   mic === "recording"
-                    ? "animate-pulse border-red-500 bg-red-500/20 text-red-400"
+                    ? "border-sky-500/60 bg-sky-500/10 text-sky-400"
                     : "border-zinc-700 bg-zinc-800 text-zinc-200 hover:border-zinc-500 hover:text-white"
                 }`}
               >
-                {mic === "transcribing" ? <MiniSpinner /> : <WaveIcon />}
+                {mic === "transcribing" ? (
+                  <MiniSpinner />
+                ) : mic === "recording" ? (
+                  <AnimatedWaveIcon />
+                ) : (
+                  <WaveIcon />
+                )}
               </button>
 
               <button
@@ -385,6 +391,33 @@ function WaveIcon() {
   return (
     <svg width={17} height={17} {...iconProps} strokeWidth={2}>
       <path d="M4 11v2M8 8v8M12 5v14M16 8v8M20 11v2" />
+    </svg>
+  );
+}
+
+/** Animated equalizer shown while actively recording. */
+function AnimatedWaveIcon() {
+  const bars = [
+    { cx: 4, delay: "0s" },
+    { cx: 8, delay: "0.18s" },
+    { cx: 12, delay: "0.36s" },
+    { cx: 16, delay: "0.18s" },
+    { cx: 20, delay: "0s" },
+  ];
+  return (
+    <svg width={17} height={17} viewBox="0 0 24 24" fill="currentColor">
+      {bars.map((b) => (
+        <rect
+          key={b.cx}
+          className="eq-bar"
+          x={b.cx - 1}
+          y={4}
+          width={2}
+          height={16}
+          rx={1}
+          style={{ animationDelay: b.delay }}
+        />
+      ))}
     </svg>
   );
 }
