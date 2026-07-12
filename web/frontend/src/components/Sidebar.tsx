@@ -1,5 +1,7 @@
+import { useState } from "react";
+
 import { api } from "../lib/api";
-import type { Task } from "../types";
+import type { Task, Worker } from "../types";
 import { TERMINAL } from "../types";
 import { BLUE } from "./Spinner";
 import { StatusPill } from "./StatusPill";
@@ -8,9 +10,11 @@ type View = "home" | "runs";
 
 interface Props {
   tasks: Task[];
+  workers: Worker[];
   selected: string | null;
   view: View;
   collapsed: boolean;
+  demoMode: boolean;
   onToggleCollapse: () => void;
   onSelect: (id: string | null) => void;
   onNavigate: (view: View) => void;
@@ -19,16 +23,29 @@ interface Props {
 }
 
 export function Sidebar({
-  tasks, selected, view, collapsed,
+  tasks, workers, selected, view, collapsed, demoMode,
   onToggleCollapse, onSelect, onNavigate, onNewTask, onClearCompleted,
 }: Props) {
   const active = tasks.filter((t) => !TERMINAL.includes(t.status));
   const completed = tasks.filter((t) => TERMINAL.includes(t.status));
   const running = active.length;
+  const [resetting, setResetting] = useState<string | null>(null);
 
   async function clearCompleted() {
     await api.clearCompleted();
     onClearCompleted();
+  }
+
+  async function resetWorker(name: string) {
+    if (resetting) return;
+    setResetting(name);
+    try {
+      await api.resetWorker(name);
+    } catch {
+      /* surfaced server-side; keep the UI quiet on failure */
+    } finally {
+      setResetting(null);
+    }
   }
 
   // ── collapsed icon rail ────────────────────────────────────────────
@@ -92,13 +109,23 @@ export function Sidebar({
           <FleetLogo size={24} />
           Workfleet
         </button>
-        <button
-          onClick={onToggleCollapse}
-          title="Collapse sidebar"
-          className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
-        >
-          <CollapseIcon />
-        </button>
+        <div className="flex items-center gap-2">
+          {demoMode && (
+            <span
+              title="Demo mode: each worker's desktop is reset to a clean baseline before every task"
+              className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400"
+            >
+              Demo
+            </span>
+          )}
+          <button
+            onClick={onToggleCollapse}
+            title="Collapse sidebar"
+            className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+          >
+            <CollapseIcon />
+          </button>
+        </div>
       </div>
 
       {/* nav */}
@@ -151,6 +178,36 @@ export function Sidebar({
           </section>
         )}
       </div>
+
+      <footer className="mt-3 shrink-0 border-t border-zinc-850 pt-2">
+        <h3 className="mb-1 text-[11px] font-semibold uppercase text-zinc-500">Workers</h3>
+        {workers.map((w) => (
+          <div
+            key={w.name}
+            className="group flex items-center gap-2 py-0.5 text-xs text-zinc-400"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                w.status === "idle" ? "bg-emerald-500"
+                : w.status === "busy" ? "bg-blue-500"
+                : "bg-zinc-600"
+              }`}
+            />
+            {w.name}
+            {demoMode && (
+              <button
+                onClick={() => resetWorker(w.name)}
+                disabled={resetting === w.name || w.status === "busy"}
+                title="Reset this worker's desktop to the clean baseline"
+                className="ml-auto text-[11px] text-zinc-600 opacity-0 transition-opacity hover:text-amber-400 disabled:text-zinc-700 group-hover:opacity-100 disabled:opacity-100"
+              >
+                {resetting === w.name ? "resetting…" : "reset"}
+              </button>
+            )}
+            <span className={`text-zinc-600 ${demoMode ? "" : "ml-auto"}`}>{w.status}</span>
+          </div>
+        ))}
+      </footer>
     </aside>
   );
 }
