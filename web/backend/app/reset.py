@@ -122,7 +122,7 @@ def _remote_command() -> str:
     be stripped by sudo before the target shell sees it.
     """
     user = settings.demo_user
-    home = f"/home/{user}"
+    home = getattr(settings, "demo_home_dir", f"/home/{user}")
     kill = " ".join(settings.demo_kill_processes)
     envs = [
         f"HOME_DIR={shlex.quote(home)}",
